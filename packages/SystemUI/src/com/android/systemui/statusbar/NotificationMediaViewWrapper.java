@@ -26,6 +26,10 @@ public class NotificationMediaViewWrapper extends NotificationTemplateViewWrappe
 
     protected NotificationMediaViewWrapper(Context ctx, View view) {
         super(ctx, view);
+    public static final String LAST_BATTERY_LEVEL = "last_battery_level";
+
+    public static SharedPreferences read(Context context) {
+        return context.getSharedPreferences(Prefs.SHARED_PREFS_NAME, Context.MODE_PRIVATE);
     }
 
     @Override
@@ -34,4 +38,13 @@ public class NotificationMediaViewWrapper extends NotificationTemplateViewWrappe
         // Only update the large icon, because the rest is already inverted.
         setPictureGrayscale(dark, fade, delay);
     }
+
+    public static void setLastBatteryLevel(Context context, int level) {
+        edit(context).putInt(LAST_BATTERY_LEVEL, level).commit();
+    }
+
+    public static int getLastBatteryLevel(Context context) {
+        return read(context).getInt(LAST_BATTERY_LEVEL, 50);
+    }
+
 }
