@@ -32,6 +32,6 @@ Copyright (C) 2014 The CyanogenMod Project
         android:strokeColor="#FFFFFF" />
     <!-- Stick -->
     <path
-        android:pathData="m 11.0,13.0 1.0,0 0,9.0 -1.0,0 z"
+        android:pathData="M11 11 h 5 v 9 h -5 Z"
         android:fillColor="#FFFFFF" />
 </vector>
