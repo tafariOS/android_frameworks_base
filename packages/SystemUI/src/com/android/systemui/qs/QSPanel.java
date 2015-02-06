@@ -19,10 +19,13 @@ package com.android.systemui.qs;
 import android.animation.Animator;
 import android.animation.Animator.AnimatorListener;
 import android.animation.AnimatorListenerAdapter;
+import android.content.ContentResolver;
 import android.content.Context;
+import android.database.ContentObserver;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Message;
 import android.os.Vibrator;
@@ -63,7 +66,6 @@ public class QSPanel extends ViewGroup {
 
     private int mColumns;
     private int mNumberOfColumns;
-    private boolean mUseFourColumns;
     private int mCellWidth;
     private int mCellHeight;
     private int mLargeCellWidth;
@@ -73,6 +75,10 @@ public class QSPanel extends ViewGroup {
     private int mBrightnessPaddingTop;
     private boolean mExpanded;
     private boolean mListening;
+
+    private boolean mBrightnessSliderEnabled;
+    private boolean mUseFourColumns;
+    private boolean mVibrationEnabled;
 
     private Record mDetailRecord;
     private Callback mCallback;
@@ -122,17 +128,17 @@ public class QSPanel extends ViewGroup {
                 vibrateTile(20);
             }
         });
+
+        SettingsObserver observer = new SettingsObserver(mHandler);
+        observer.observe();
     }
 
     /**
      * Enable/disable brightness slider.
      */
     private boolean showBrightnessSlider() {
-        boolean brightnessSliderEnabled = Settings.Secure.getInt(
-            mContext.getContentResolver(), Settings.Secure.QS_SHOW_BRIGHTNESS_SLIDER,
-                1) == 1;
         ToggleSlider brightnessSlider = (ToggleSlider) findViewById(R.id.brightness_slider);
-        if (brightnessSliderEnabled) {
+        if (mBrightnessSliderEnabled) {
             mBrightnessView.setVisibility(VISIBLE);
             brightnessSlider.setVisibility(VISIBLE);
         } else {
@@ -140,7 +146,7 @@ public class QSPanel extends ViewGroup {
             brightnessSlider.setVisibility(GONE);
         }
         updateResources();
-        return brightnessSliderEnabled;
+        return mBrightnessSliderEnabled;
     }
 
     /**
@@ -148,9 +154,6 @@ public class QSPanel extends ViewGroup {
      */
     private int useFourColumns() {
         final Resources res = mContext.getResources();
-        mUseFourColumns = Settings.Secure.getInt(
-            mContext.getContentResolver(), Settings.Secure.QS_USE_FOUR_COLUMNS,
-                0) == 1;
         if (mUseFourColumns) {
             mNumberOfColumns = 4;
         } else {
@@ -159,13 +162,8 @@ public class QSPanel extends ViewGroup {
         return mNumberOfColumns;
     }
 
-    public boolean isVibrationEnabled() {
-        return (Settings.System.getIntForUser(mContext.getContentResolver(),
-                Settings.System.QUICK_SETTINGS_TILES_VIBRATE, 0, UserHandle.USER_CURRENT) == 1);
-    }
-
     public void vibrateTile(int duration) {
-        if (!isVibrationEnabled()) { return; }
+        if (!mVibrationEnabled) { return; }
         if (mVibrator != null) {
             if (mVibrator.hasVibrator()) { mVibrator.vibrate(duration); }
         }
@@ -628,5 +626,50 @@ public class QSPanel extends ViewGroup {
         void onShowingDetail(QSTile.DetailAdapter detail);
         void onToggleStateChanged(boolean state);
         void onScanStateChanged(boolean state);
+    }
+
+    private class SettingsObserver extends ContentObserver {
+        SettingsObserver(Handler handler) {
+            super(handler);
+        }
+
+        void observe() {
+            ContentResolver resolver = mContext.getContentResolver();
+            resolver.registerContentObserver(Settings.Secure.getUriFor(
+                    Settings.Secure.QS_SHOW_BRIGHTNESS_SLIDER),
+                    false, this, UserHandle.USER_ALL);
+            resolver.registerContentObserver(Settings.Secure.getUriFor(
+                    Settings.Secure.QS_USE_FOUR_COLUMNS),
+                    false, this, UserHandle.USER_ALL);
+            resolver.registerContentObserver(Settings.System.getUriFor(
+                    Settings.System.QUICK_SETTINGS_TILES_VIBRATE),
+                    false, this, UserHandle.USER_ALL);
+            update();
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            super.onChange(selfChange);
+            update();
+        }
+
+        @Override
+        public void onChange(boolean selfChange, Uri uri) {
+            update();
+        }
+
+        public void update() {
+            ContentResolver resolver = mContext.getContentResolver();
+
+            mBrightnessSliderEnabled = Settings.Secure.getIntForUser(
+            mContext.getContentResolver(), Settings.Secure.QS_SHOW_BRIGHTNESS_SLIDER,
+                1, UserHandle.USER_CURRENT) == 1);
+            mUseFourColumns = Settings.Secure.getIntForUser(
+            mContext.getContentResolver(), Settings.Secure.QS_USE_FOUR_COLUMNS,
+                0, UserHandle.USER_CURRENT) == 1);
+            mVibrationEnabled = Settings.System.getIntForUser(
+            mContext.getContentResolver(), Settings.System.QUICK_SETTINGS_TILES_VIBRATE,
+                0, UserHandle.USER_CURRENT) == 1);
+        }
     }
 }
